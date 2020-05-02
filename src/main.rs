@@ -99,6 +99,31 @@ impl Moves {
             moves: Vec::new(),
         }
     }
+
+    // Formats the moves into the puzzle format. Bad becuase anything not using 0 index is shameful. Or I guess not primarily meant for programmers... But isn't that the same thing?
+    fn to_bad_str(&self) -> String {
+        let mut res = format!("Score: {}\nMoves:", self.score);
+        let mut last = (0, 0);
+        let mut first = true;
+        for pair in &self.moves {
+            if pair.0 == std::u8::MAX {
+            }
+            else if pair.0 == last.1 {
+                res.push_str(&format!("-{}", pair.1 + 1));
+            }
+            else {
+                if first {
+                    first = false;
+                    res.push_str(&format!(" {}-{}", pair.0 + 1, pair.1 + 1));
+                }
+                else {
+                    res.push_str(&format!(", {}-{}", pair.0 + 1, pair.1 + 1));
+                }
+            }
+            last = *pair;
+        }
+        res
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -149,6 +174,9 @@ fn solve_tri_solitair(side: u8) {
     else if side == 6 {
         vec![0, 1, 3, 4, 2]
     }
+    else if side < 4 {
+        Vec::new() // They will all fail anyways...
+    }
     else {
         panic!("I didn't create a starting move calculator because of lazyness... So can only do ones hard coded right now... Also anything bigger whould just take to long anyways...")
     };
@@ -179,6 +207,9 @@ fn solve_tri_solitair(side: u8) {
     eprint!("\n");
 
     println!("{:?}", best);
+    if let Some(res) = best {
+        println!("\n{}", res.to_bad_str());
+    }
 }
 
 fn solve_tri_solitair_rec(left: u8, pegs: &mut [bool], move_at_idx: &Vec<MoveCheck>, current: &mut Moves, best: &mut Option<Moves>) {
