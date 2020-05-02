@@ -85,20 +85,6 @@ fn line_to_offset(line: u8) -> u8 {
     }
 }
 
-
-fn main() {
-    // for l in 0..4 {
-    //     println!("");
-    //     for n in 0..=l {
-    //         print!("{}\t", TriPos::new(l, n, 99).to_idx() );
-    //     }
-    // }
-    // println!("");
-
-    solve_tri_solitair(5);
-    // test_walk(TriPos::new(0, 0, 4));
-}
-
 #[derive(Clone, Debug)]
 struct Moves {
     score: u8,
@@ -118,6 +104,10 @@ impl Moves {
 struct MoveCheck {
     len: u8,
     moves: [(u8, u8); 6],
+}
+
+fn main() {
+    solve_tri_solitair(4);
 }
 
 fn solve_tri_solitair(side: u8) {
@@ -155,7 +145,7 @@ fn solve_tri_solitair(side: u8) {
         vec![0, 1, 3, 4]
     }
     else {
-        panic!("I didn't create a starting move calculator because of lazyness... So can only do ones hand decided right now...")
+        panic!("I didn't create a starting move calculator because of lazyness... So can only do ones hard coded right now...")
     };
 
     let mut moves = Moves::new();
@@ -163,66 +153,17 @@ fn solve_tri_solitair(side: u8) {
     let moves_left = pegs.len() - 1;
     for s in &start_moves {
         let s = *s;
-        let mut new = pegs.clone();
-        new[s] = false;
+        pegs[s] = false;
         moves.moves.push((std::u8::MAX, s as u8));
-        solve_tri_solitair_rec(moves_left as u8, &new, &moves_at_idx, &mut moves, &mut best);
+        solve_tri_solitair_rec(moves_left as u8, &mut pegs, &moves_at_idx, &mut moves, &mut best);
         moves.moves.pop();
+        pegs[s] = true;
     }
 
     println!("{:?}", best);
-
-    // let mut pos = TriPos::new(0, 0, side);
-    // let mut input = String::new();
-    // loop {
-    //     let mut idx = 0;
-    //     for l in 0..pos.max_line {
-    //         print!("\n{}\t", l + 1);
-    //         for _ in 0..(pos.max_line - l) {
-    //             print!(" ");
-    //         }
-    //         for n in 0..=l {
-    //             if pos.line == l && pos.pos == n {
-    //                 print!("* ");
-    //             }
-    //             else {
-    //                 let mut c = 'O';
-    //                 let moves = &moves_at_idx[pos.to_idx()];
-    //                 for pair in &moves.1[0..moves.0 as usize] {
-    //                     if pair.1 as usize == idx {
-    //                         c = '0';
-    //                         break;
-    //                     }
-    //                 }
-    //                 print!("{} ", c);
-    //             }
-    //             idx += 1;
-    //         }
-    //     }
-    //     print!("\n");
-
-    //     input.clear();
-    //     match io::stdin().read_line(&mut input) {
-    //         Ok(_) => {
-    //             let slice = input.trim();
-    //             match slice {
-    //                 "ul" | "7" => pos = pos.up_left().unwrap_or(pos),
-    //                 "ur" | "9" => pos = pos.up_right().unwrap_or(pos),
-    //                 "l" | "4" => pos = pos.left().unwrap_or(pos),
-    //                 "r" | "6" => pos = pos.right().unwrap_or(pos),
-    //                 "dl" | "1" => pos = pos.down_left().unwrap_or(pos),
-    //                 "dr" | "3" => pos = pos.down_right().unwrap_or(pos),
-    //                 "exit" => break,
-    //                 _ => print!("Bad input"),
-    //             }
-    //         }
-    //         Err(error) => panic!("error: {}", error),
-    //     }
-    //     print!("{:?}", moves_at_idx[pos.to_idx()]);
-    // }
 }
 
-fn solve_tri_solitair_rec(left: u8, pegs: &[bool], move_at_idx: &Vec<MoveCheck>, current: &mut Moves, best: &mut Option<Moves>) {
+fn solve_tri_solitair_rec(left: u8, pegs: &mut [bool], move_at_idx: &Vec<MoveCheck>, current: &mut Moves, best: &mut Option<Moves>) {
     if left == 1 {
         if best.as_ref().map(|b| b.score).unwrap_or(std::u8::MAX) > current.score {
             *best = Some(current.clone());
@@ -230,29 +171,31 @@ fn solve_tri_solitair_rec(left: u8, pegs: &[bool], move_at_idx: &Vec<MoveCheck>,
         return;
     }
 
-    for (idx, peg) in pegs.iter().enumerate() {
-        if *peg {
+    for idx in 0..pegs.len() {
+        if pegs[idx] {
             let m = &move_at_idx[idx];
             for (mid, target) in &m.moves[0..m.len as usize] {
                 let mid = *mid as usize;
                 let target = *target as usize;
                 if pegs[mid] && !pegs[target] {
-                    let mut new = pegs.to_vec();
-                    new[idx] = false;
-                    new[mid] = false;
-                    new[target] = true;
                     let mut cost = 1;
                     if let Some(last) = current.moves.last() {
-                        if last.1 == idx as u8 && last.0 != std::u8::MAX {
+                        if last.1 == idx as u8 {
                             cost = 0;
                         }
                     }
 
+                    pegs[idx] = false;
+                    pegs[mid] = false;
+                    pegs[target] = true;
                     current.score += cost;
                     current.moves.push((idx as u8, target as u8));
-                    solve_tri_solitair_rec(left - 1, &new, &move_at_idx, current, best);
+                    solve_tri_solitair_rec(left - 1, pegs, &move_at_idx, current, best);
                     current.moves.pop();
                     current.score -= cost;
+                    pegs[idx] = true;
+                    pegs[mid] = true;
+                    pegs[target] = false;
                 }
             }
         }
