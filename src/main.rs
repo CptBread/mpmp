@@ -1,4 +1,5 @@
 use std::io;
+use std::env;
 
 #[derive(Copy, Clone)]
 struct TriPos {
@@ -107,7 +108,8 @@ struct MoveCheck {
 }
 
 fn main() {
-    solve_tri_solitair(4);
+    let sides = env::args().skip(1).next().and_then(|s| s.parse::<u8>().ok()).unwrap_or(4);
+    solve_tri_solitair(sides);
 }
 
 fn solve_tri_solitair(side: u8) {
@@ -144,12 +146,26 @@ fn solve_tri_solitair(side: u8) {
     else if side == 5 {
         vec![0, 1, 3, 4]
     }
+    else if side == 6 {
+        vec![0, 1, 3, 4, 2]
+    }
     else {
-        panic!("I didn't create a starting move calculator because of lazyness... So can only do ones hard coded right now...")
+        panic!("I didn't create a starting move calculator because of lazyness... So can only do ones hard coded right now... Also anything bigger whould just take to long anyways...")
     };
 
     let mut moves = Moves::new();
-    let mut best = None;
+    
+    let mut best = if side == 6 {
+        // We assume we can find a path better then this as otherwise it's just going to take too long...
+        Some(Moves{
+            score: 10,
+            moves: Vec::new(),
+        })
+    }
+    else {
+        None
+    };
+
     let moves_left = pegs.len() - 1;
     for s in &start_moves {
         let s = *s;
@@ -158,7 +174,9 @@ fn solve_tri_solitair(side: u8) {
         solve_tri_solitair_rec(moves_left as u8, &mut pegs, &moves_at_idx, &mut moves, &mut best);
         moves.moves.pop();
         pegs[s] = true;
+        eprint!(".");
     }
+    eprint!("\n");
 
     println!("{:?}", best);
 }
@@ -168,6 +186,10 @@ fn solve_tri_solitair_rec(left: u8, pegs: &mut [bool], move_at_idx: &Vec<MoveChe
         if best.as_ref().map(|b| b.score).unwrap_or(std::u8::MAX) > current.score {
             *best = Some(current.clone());
         }
+        return;
+    }
+    // If best is better or equal then the current score skip
+    if best.as_ref().map(|b| b.score <= current.score).unwrap_or(false) {
         return;
     }
 
