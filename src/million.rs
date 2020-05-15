@@ -50,9 +50,11 @@ fn find_pair(target:u32) -> Option<(u32, u32)> {
 					break;
 				}
 				else if v == target {
+					// println!("{} * {} + {} * {}", n, high, i, low);
 					return Some((n, i));
 				}
 				if high.saturating_mul(i).saturating_add(low.saturating_mul(n)) == target {
+					// println!("{} * {} + {} * {}", n, low, high, i);
 					return Some((i, n));
 				}
 			}
@@ -61,3 +63,4 @@ fn find_pair(target:u32) -> Option<(u32, u32)> {
 	}
 	None
 }
+
