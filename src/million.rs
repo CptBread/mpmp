@@ -1,5 +1,4 @@
 use std::env;
-use std::io;
 
 pub fn run() {
 	let target = env::args().skip(1).next().and_then(|s| s.parse::<u32>().ok()).unwrap_or(1_000_000);
@@ -39,9 +38,10 @@ fn find_pair(target:u32) -> Option<(u32, u32)> {
 		curr = n;
 	}
 
+	// We rely on that any number in a "fibonacci like" sequence, starting with X and Y,
+	// can be calculated by "f(n) = X * Fib(n - 1) + Y * Fib(n)" except for f(0) which equals X
 	let mut high = *fib.last().unwrap();
 	for low in fib.iter().rev().skip(1) {
-		// let curr = *curr;
 		for n in 1..target {
 			for i in n..target {
 				// This will produce the lower value of the two so if that is above the limit then break
@@ -52,7 +52,7 @@ fn find_pair(target:u32) -> Option<(u32, u32)> {
 				else if v == target {
 					return Some((n, i));
 				}
-				if high * i + low * n == target {
+				if high.saturating_mul(i).saturating_add(low.saturating_mul(n)) == target {
 					return Some((i, n));
 				}
 			}
