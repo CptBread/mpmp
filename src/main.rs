@@ -1,6 +1,7 @@
 // mod solitair;
-mod million;
+// mod million;
+mod unique_dist;
 
 fn main() {
-    million::run();
+    unique_dist::run();
 }
