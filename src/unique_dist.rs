@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 use std::mem;
+use std::collections::HashSet;
 
 pub fn run() {
     solve(6);
@@ -12,7 +13,7 @@ struct Pos {
     max: usize,
 }
 
-#[derive(Copy, Clone, Debug, Hash Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 struct Off {
     x: isize,
     y: isize,
@@ -98,6 +99,7 @@ enum Tile{
 struct Board {
     tiles: Vec<Tile>,
     empty: usize,
+    lenght: usize,
     placed: Vec<Pos>,
     offsets: HashSet<Off>,
 }
@@ -107,28 +109,54 @@ impl Board {
         Self {
             tiles: vec![Tile::Empty; lenght * lenght],
             empty: lenght * lenght,
-            place: Vec::new(),
-            offsets: HashMap::new(),
+            lenght,
+            placed: Vec::new(),
+            offsets: HashSet::new(),
         }
     }
 
     fn place(&mut self, at: Pos) {
         assert!(self.tiles[at.idx()] != Tile::Taken);
-        let mut placed = mem::take(self.placed);
+        let mut offsets = mem::take(&mut self.offsets);
+        for off in offsets.iter() {
+            self.block_off(at, *off);
+        }
+        let mut placed = mem::take(&mut self.placed);
         for o in placed.iter() {
-            let mut curr_off = at.diff(o);
-            for _ in 0..4 {
-                if let Some(p) = curr.add_off(curr_off) {
-                    self.block(p.idx());
+            let mut off = at.diff(*o);
+            if !offsets.contains(&off) {
+                for _ in 0..4 {
+                    let reflect = off.reflect();
+                    if offsets.insert(off) {
+                        for o in placed.iter().chain(std::iter::once(&at)) {
+                            self.block_off(*o, off);
+                        }
+                    } 
+                    if offsets.insert(reflect) {
+                        for o in placed.iter().chain(std::iter::once(&at)) {
+                            self.block_off(*o, off.reflect());
+                        }
+                    }
+                    off = off.rot();
                 }
-                if let Some(p) = curr.add_off(curr_off.reflect()) {
-                    self.block(p.idx());
-                }
-                curr_off = curr_off.rot();
             }
         }
         self.set_tile(at.idx(), Tile::Taken);
-        self.placed = mem::take(placed);
+        placed.push(at);
+        self.placed = placed;
+        self.offsets = offsets
+    }
+
+    fn first_empty(&self) -> Option<Pos> {
+        if self.empty <= 0 {
+            return None;
+        }
+        for (idx, t) in self.tiles.iter().enumerate() {
+            if *t == Tile::Empty {
+                return Some(Pos::from_idx(idx, self.lenght));
+            }
+        }
+        panic!("Shouldn't be possible to get here!");
     }
 
     fn block(&mut self, idx: usize) {
@@ -138,9 +166,15 @@ impl Board {
         }
     }
 
+    fn block_off(&mut self, at: Pos, off: Off) {
+        if let Some(p) = at.add_off(off) {
+            self.block(p.idx())
+        }
+    }
+
     fn set_tile(&mut self, idx: usize, state: Tile) {
         let curr = &mut self.tiles[idx];
-        if curr != *state {
+        if *curr != state {
             if state == Tile::Empty {
                 self.empty += 1;
             }
@@ -153,31 +187,46 @@ impl Board {
 }
 
 fn solve(lenght: usize) -> Option<Vec<Pos>> {
-    let mut board = vec![Tile::Empty; lenght * lenght];
-    let mut curr = Pos::new(2, 2, lenght);
-    board[curr.idx()] = Tile::Taken;
+    // let mut board = vec![Tile::Empty; lenght * lenght];
+    // let mut curr = Pos::new(2, 2, lenght);
+    // board[curr.idx()] = Tile::Taken;
 
-    let mut next = Pos::new(0, 1, lenght); //curr.next()?;
-    let mut curr_off = curr.diff(next);
-    for _ in 0..4 {
-        if let Some(p) = curr.add_off(curr_off) {
-            let p = p.idx();
-            if board[p] == Tile::Empty {
-                board[p] = Tile::Blocked;
-            }
+    // let mut next = Pos::new(0, 1, lenght); //curr.next()?;
+    // let mut curr_off = curr.diff(next);
+    // for _ in 0..4 {
+    //     if let Some(p) = curr.add_off(curr_off) {
+    //         let p = p.idx();
+    //         if board[p] == Tile::Empty {
+    //             board[p] = Tile::Blocked;
+    //         }
+    //     }
+    //     if let Some(p) = curr.add_off(curr_off.reflect()) {
+    //         let p = p.idx();
+    //         if board[p] == Tile::Empty {
+    //             board[p] = Tile::Blocked;
+    //         }
+    //     }
+    //     curr_off = curr_off.rot();
+    // }
+    let mut board = Board::new(lenght);
+    board.place(Pos::new(2, 2, lenght));
+    board.place(Pos::new(0, 1, lenght));
+    loop {
+        for i in 0..lenght {
+            let line = format!("{:?}", &board.tiles[i * lenght..(i + 1) * lenght])
+                .replace("Empty", "_").replace("Taken", "X").replace("Blocked", "0");
+            println!("{}", line);
         }
-        if let Some(p) = curr.add_off(curr_off.reflect()) {
-            let p = p.idx();
-            if board[p] == Tile::Empty {
-                board[p] = Tile::Blocked;
-            }
+        if let Some(p) = board.first_empty() {
+            board.place(p);
+            println!("Place: ({}, {})", p.x, p.y);
         }
-        curr_off = curr_off.rot();
+        else {
+            println!("Failed with {} placed", board.placed.len());
+            break;
+        }
     }
-    for i in 0..lenght {
-        println!("{:?}", &board[i * lenght..(i + 1) * lenght]);
-    }
-    // println!("{:?}", board);
+    println!("{:?}", board);
     None
 }
 
