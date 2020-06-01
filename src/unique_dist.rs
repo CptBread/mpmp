@@ -3,7 +3,7 @@ use std::mem;
 use std::collections::HashSet;
 
 pub fn run() {
-    solve(6);
+    solve(5);
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -159,6 +159,18 @@ impl Board {
         panic!("Shouldn't be possible to get here!");
     }
 
+    fn next_empty(&self, at: Pos) -> Option<Pos> {
+        if self.empty <= 0 {
+            return None;
+        }
+        for (idx, t) in self.tiles.iter().enumerate().skip(at.idx()) {
+            if *t == Tile::Empty {
+                return Some(Pos::from_idx(idx, self.lenght));
+            }
+        }
+        return None;
+    }
+
     fn block(&mut self, idx: usize) {
         if self.tiles[idx] == Tile::Empty {
             self.tiles[idx] = Tile::Blocked;
@@ -182,6 +194,14 @@ impl Board {
                 self.empty -= 1;
             }
             *curr = state;
+        }
+    }
+
+    fn show(&self) {
+        for i in 0..self.lenght {
+            let line = format!("{:?}", &self.tiles[i * self.lenght..(i + 1) * self.lenght])
+                .replace("Empty", "_").replace("Taken", "X").replace("Blocked", "0");
+            println!("{}", line);
         }
     }
 }
@@ -209,27 +229,43 @@ fn solve(lenght: usize) -> Option<Vec<Pos>> {
     //     curr_off = curr_off.rot();
     // }
     let mut board = Board::new(lenght);
-    board.place(Pos::new(2, 2, lenght));
-    board.place(Pos::new(0, 1, lenght));
-    loop {
-        for i in 0..lenght {
-            let line = format!("{:?}", &board.tiles[i * lenght..(i + 1) * lenght])
-                .replace("Empty", "_").replace("Taken", "X").replace("Blocked", "0");
-            println!("{}", line);
-        }
-        if let Some(p) = board.first_empty() {
-            board.place(p);
-            println!("Place: ({}, {})", p.x, p.y);
-        }
-        else {
-            println!("Failed with {} placed", board.placed.len());
-            break;
-        }
-    }
+    step(&board);
+    // board.place(Pos::new(2, 2, lenght));
+    // board.place(Pos::new(0, 1, lenght));
+    // loop {
+    //     board.show();
+    //     if let Some(p) = board.first_empty() {
+    //         board.place(p);
+    //         println!("Place: ({}, {})", p.x, p.y);
+    //     }
+    //     else {
+    //         println!("Failed with {} placed", board.placed.len());
+    //         break;
+    //     }
+    // }
     println!("{:?}", board);
     None
 }
 
-fn step(lenght: usize, board: &[Tile], current: &mut Vec<Pos>) -> bool {
-    false
+fn step(last: &Board) -> bool {
+    let mut at = if let Some(p) = last.first_empty() {p} else {return false};
+    let mut board = last.clone();
+    loop {
+        board.place(at);
+        if board.placed.len() == board.lenght {
+            board.show();
+            println!("Found solution: {:?}", board.placed);
+            return true
+        }
+        if board.empty == 0 {
+            // board.show();
+            // println!("Failed with: {:?}", board.placed);
+            return false;
+        }
+        if step(&board) {
+            return true;
+        }
+        board = last.clone();
+        at = if let Some(p) = last.next_empty(at) {p} else {return false};
+    }
 }
