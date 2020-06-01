@@ -1,12 +1,13 @@
 use std::convert::TryInto;
 use std::mem;
 use std::collections::HashSet;
+use std::io::{self, Read};
 
 pub fn run() {
-    solve(5);
+    solve(6);
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 struct Pos {
     x: usize,
     y: usize,
@@ -115,36 +116,47 @@ impl Board {
         }
     }
 
-    fn place(&mut self, at: Pos) {
+    fn place(&mut self, at: Pos) -> bool {
         assert!(self.tiles[at.idx()] != Tile::Taken);
         let mut offsets = mem::take(&mut self.offsets);
         for off in offsets.iter() {
             self.block_off(at, *off);
         }
         let mut placed = mem::take(&mut self.placed);
-        for o in placed.iter() {
-            let mut off = at.diff(*o);
+        for p in placed.iter() {
+            let mut off = at.diff(*p);
             if !offsets.contains(&off) {
+                let mut fail = 0;
                 for _ in 0..4 {
                     let reflect = off.reflect();
                     if offsets.insert(off) {
-                        for o in placed.iter().chain(std::iter::once(&at)) {
+                        for o in placed.iter() {
                             self.block_off(*o, off);
+                        }
+                        if !self.block_off(at, off) {
+                            fail += 1;
                         }
                     } 
                     if offsets.insert(reflect) {
                         for o in placed.iter().chain(std::iter::once(&at)) {
-                            self.block_off(*o, off.reflect());
+                            self.block_off(*o, reflect);
+                        }
+                        if !self.block_off(at, reflect) {
+                            fail += 1;
                         }
                     }
                     off = off.rot();
+                }
+                if fail > 1 {
+                    return false;
                 }
             }
         }
         self.set_tile(at.idx(), Tile::Taken);
         placed.push(at);
         self.placed = placed;
-        self.offsets = offsets
+        self.offsets = offsets;
+        true
     }
 
     fn first_empty(&self) -> Option<Pos> {
@@ -163,7 +175,7 @@ impl Board {
         if self.empty <= 0 {
             return None;
         }
-        for (idx, t) in self.tiles.iter().enumerate().skip(at.idx()) {
+        for (idx, t) in self.tiles.iter().enumerate().skip(at.idx() + 1) {
             if *t == Tile::Empty {
                 return Some(Pos::from_idx(idx, self.lenght));
             }
@@ -171,16 +183,26 @@ impl Board {
         return None;
     }
 
-    fn block(&mut self, idx: usize) {
-        if self.tiles[idx] == Tile::Empty {
+    // False if already taken
+    fn block(&mut self, idx: usize) -> bool {
+        match self.tiles[idx] {
+            Tile::Empty => {
             self.tiles[idx] = Tile::Blocked;
             self.empty -= 1;
+                true
+            },
+            Tile::Blocked => {true}
+            Tile::Taken => {false}
         }
     }
 
-    fn block_off(&mut self, at: Pos, off: Off) {
+    // False if already taken
+    fn block_off(&mut self, at: Pos, off: Off) -> bool {
         if let Some(p) = at.add_off(off) {
             self.block(p.idx())
+        }
+        else {
+            true
         }
     }
 
@@ -203,6 +225,22 @@ impl Board {
                 .replace("Empty", "_").replace("Taken", "X").replace("Blocked", "0");
             println!("{}", line);
         }
+    }
+
+    fn check_dist(&self) -> bool {
+        let max = self.placed.len();
+        let mut dists = HashSet::new();
+        for f in 0..max {
+            for s in (f + 1)..max {
+                let f = self.placed[f];
+                let s = self.placed[s];
+                println!("{} {:?} {:?}, {:?}", f.dist(s), f, s, f.diff(s));
+                if !dists.insert(f.dist(s).to_ne_bytes()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }
 
@@ -229,7 +267,7 @@ fn solve(lenght: usize) -> Option<Vec<Pos>> {
     //     curr_off = curr_off.rot();
     // }
     let mut board = Board::new(lenght);
-    step(&board);
+    step(&mut board);
     // board.place(Pos::new(2, 2, lenght));
     // board.place(Pos::new(0, 1, lenght));
     // loop {
@@ -247,25 +285,66 @@ fn solve(lenght: usize) -> Option<Vec<Pos>> {
     None
 }
 
-fn step(last: &Board) -> bool {
+fn step(last: &mut Board) -> bool {
     let mut at = if let Some(p) = last.first_empty() {p} else {return false};
     let mut board = last.clone();
     loop {
-        board.place(at);
+        if !board.place(at) {
+            last.block(at.idx());
+            last.show();
+            println!("Failed placed at: {:?}", at);
+            at = if let Some(p) = last.next_empty(at) {p} else {return false};
+            board = last.clone();
+            continue;
+        }
         if board.placed.len() == board.lenght {
             board.show();
             println!("Found solution: {:?}", board.placed);
-            return true
+            if board.check_dist() {
+                return true;
+            }
+            // return read_int().is_none()
         }
         if board.empty == 0 {
-            // board.show();
-            // println!("Failed with: {:?}", board.placed);
+            board.show();
+            println!("Failed with: {:?}", board.placed);
             return false;
         }
-        if step(&board) {
+        if step(&mut board) {
             return true;
         }
         board = last.clone();
         at = if let Some(p) = last.next_empty(at) {p} else {return false};
     }
+}
+
+// fn step(last: &Board) -> bool {
+//     last.show();
+//     let at = if let Some(p) = read_pos(last.lenght) {p} else {return false};
+//     let mut board = last.clone();
+//     board.place(at);
+//     if board.placed.len() == board.lenght {
+//         // board.show();
+//         println!("Found solution: {:?}", board.placed);
+//         return true
+//     }
+//     if board.empty == 0 {
+//         board.show();
+//         println!("Failed with: {:?}", board.placed);
+//         return false;
+//     }
+//     if step(&board) {
+//         return true;
+//     }
+//     step(last)
+// }
+
+// fn read_pos(len: usize) -> Option<Pos> {
+//     Some(Pos::new(read_int()?, read_int()?, len))
+// }
+
+fn read_int() -> Option<usize> {
+    let mut n = String::new();
+    io::stdin().read_line(&mut n).ok()?;
+    n.trim().parse().ok()
 }
