@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::io::{self, Read};
 
 pub fn run() {
-    solve(6);
+    solve(7);
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -291,23 +291,23 @@ fn step(last: &mut Board) -> bool {
     loop {
         if !board.place(at) {
             last.block(at.idx());
-            last.show();
-            println!("Failed placed at: {:?}", at);
+            // last.show();
+            // println!("Failed placed at: {:?}", at);
             at = if let Some(p) = last.next_empty(at) {p} else {return false};
             board = last.clone();
             continue;
         }
         if board.placed.len() == board.lenght {
-            board.show();
-            println!("Found solution: {:?}", board.placed);
             if board.check_dist() {
                 return true;
             }
+            board.show();
+            println!("Found solution: {:?}", board.placed);
             // return read_int().is_none()
         }
         if board.empty == 0 {
-            board.show();
-            println!("Failed with: {:?}", board.placed);
+            // board.show();
+            // println!("Failed with: {:?}", board.placed);
             return false;
         }
         if step(&mut board) {
